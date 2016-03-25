@@ -11,13 +11,15 @@
 #import "Arrival.h"
 #import "StopCell.h"
 #import "StopDetailViewController.h"
+@import CoreLocation;
 
 #define kCellReuseID        @"stopCell"
 
-@interface StopsViewController ()
+@interface StopsViewController () <CLLocationManagerDelegate>
 
 @property (nonatomic, strong) NSArray *arrivals;
 @property (nonatomic, strong) NSTimer *updateTimer;
+@property (strong, nonatomic) CLLocationManager *locationManager;
 
 @property (nonatomic, strong) UIImageView *emptyImageView;
 
@@ -40,10 +42,20 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-        
+    
     // Start monitoring for location updates
     AppDelegate *del = (AppDelegate*) [UIApplication sharedApplication].delegate;
     [del addObserver:self forKeyPath:@"currentLocation" options:NSKeyValueObservingOptionNew context:nil];
+    
+    // Ask for permission to use the locations service
+    // Source: http://nevan.net/2014/09/core-location-manager-changes-in-ios-8/
+    self.locationManager = [[CLLocationManager alloc] init];
+    self.locationManager.delegate = self;
+    // Check for iOS 8. Without this guard the code will crash with "unknown selector" on iOS 7.
+    if ([self.locationManager respondsToSelector:@selector(requestWhenInUseAuthorization)]) {
+        [self.locationManager requestWhenInUseAuthorization];
+    }
+    [self.locationManager startUpdatingLocation];
     
     // Add special info button
     UIButton *button = [UIButton buttonWithType:UIButtonTypeInfoLight];
@@ -63,6 +75,13 @@
 - (void) dealloc{
     AppDelegate *del = (AppDelegate*) [UIApplication sharedApplication].delegate;
     [del removeObserver:self forKeyPath:@"currentLocation"];
+}
+
+// Location Manager Delegate Methods
+- (void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray *)locations
+{
+    // Uncomment to see where we are.
+    // NSLog(@"%@", [locations lastObject]);
 }
 
 - (void) infoButtonTapped{
@@ -96,6 +115,7 @@
         [[NSOperationQueue mainQueue] addOperationWithBlock:^{
             // Extract location from object
             AppDelegate *del = (AppDelegate*) object;
+            
             [self updateWithLocation:del.currentLocation];
         }];
     }
